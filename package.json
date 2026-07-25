@@ -8,9 +8,12 @@
   },
   "keywords": [
     "python",
-    "autocomplete",
-    "jedi",
-    "hyperclick"
+    "go-to-definition",
+    "completion",
+    "hyperclick",
+    "virtualenv",
+    "rename",
+    "usages"
   ],
   "version": "1.0.0",
   "license": "MIT",
