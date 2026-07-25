@@ -1,7 +1,7 @@
 {
   "name": "autocomplete-jedi",
   "author": "lumine-code",
-  "description": "Python packages, variables, methods and functions with their arguments autocompletion powered by Jedi",
+  "description": "Python autocompletion powered by Jedi.",
   "repository": "https://github.com/lumine-code/autocomplete-jedi",
   "bugs": {
     "url": "https://github.com/lumine-code/autocomplete-jedi/issues"

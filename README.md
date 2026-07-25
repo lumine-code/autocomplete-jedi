@@ -1,6 +1,8 @@
 # autocomplete-jedi
 
-Python packages, variables, methods and functions with their arguments autocompletion powered by [Jedi](https://github.com/davidhalter/jedi).
+Python autocompletion powered by Jedi.
+
+Completes packages, variables, methods, and functions with their arguments, powered by [Jedi](https://github.com/davidhalter/jedi).
 
 ## Features
 
