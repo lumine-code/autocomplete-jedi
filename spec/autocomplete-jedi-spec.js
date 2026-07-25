@@ -39,9 +39,20 @@ describe("autocomplete-jedi", () => {
   }
 
   it("exposes an autocomplete provider for Python sources", () => {
-    expect(provider.selector).toBe(".source.python");
-    expect(provider.disableForSelector).toContain(".source.python .comment");
+    expect(provider.scopeSelector).toBe(".source.python");
+    expect(provider.disableForScopeSelector).toContain(".source.python .comment");
     expect(typeof provider.getSuggestions).toBe("function");
+  });
+
+  it("registers with the bundled autocomplete package through the services hub", async () => {
+    atom.notifications.clear();
+    const pack = await atom.packages.activatePackage("autocomplete");
+    const { providerManager } = pack.mainModule.autocompleteManager;
+    expect(providerManager.metadataForProvider(provider)).toBeTruthy();
+    const errors = atom.notifications
+      .getNotifications()
+      .filter((notification) => notification.getType() === "error");
+    expect(errors).toEqual([]);
   });
 
   it("resolves suggestions produced by the jedi daemon", async () => {
