@@ -1,2 +1,0 @@
-'atom-text-editor[data-grammar~=python]:not([mini])':
-  'alt-b': 'autocomplete-jedi-redux:go-to-definition'

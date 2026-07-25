@@ -1,9 +1,7 @@
-@import "ui-variables";
-
 .autocomplete-jedi-rename {
   .autocomplete-jedi-rename-label {
     margin-bottom: 8px;
-    color: @text-color-subtle;
-    font-size: @font-size * 0.9;
+    color: var(--text-color-subtle);
+    font-size: calc(var(--font-size) * 0.9);
   }
 }

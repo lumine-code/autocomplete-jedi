@@ -1,4 +1,4 @@
-# autocomplete-jedi-redux
+# autocomplete-jedi
 
 Python packages, variables, methods and functions with their arguments autocompletion powered by [Jedi](https://github.com/davidhalter/jedi).
 
@@ -9,13 +9,13 @@ Python packages, variables, methods and functions with their arguments autocompl
 - **Show usages**: list all usages of the symbol under cursor across the project.
 - **Rename**: rename a symbol across multiple files in the project.
 - **Method override**: insert method overrides from parent classes.
-- **Hyperclick integration**: click on any symbol to go-to-definition when [Hyperclick](https://web.pulsar-edit.dev/packages/hyperclick) is installed.
+- **Hyperclick integration**: click on any symbol to go-to-definition when a hyperclick consumer is installed.
 - **Virtual environment support**: set the `Python Command` to the interpreter inside your virtualenv, e.g. `.venv/Scripts/python.exe`, or use `$PROJECT/.venv/Scripts/python.exe` for project-relative paths.
 - **Cross-platform**: works on macOS, Linux and Windows.
 
 ## Installation
 
-To install `autocomplete-jedi-redux` search for [autocomplete-jedi-redux](https://web.pulsar-edit.dev/packages/autocomplete-jedi-redux) in the Install pane of the Pulsar settings or run `ppm install autocomplete-jedi-redux`. Alternatively, you can run `ppm install asiloisad/pulsar-autocomplete-jedi-redux` to install a package directly from the GitHub repository.
+To install `autocomplete-jedi` search for _autocomplete-jedi_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/autocomplete-jedi`.
 
 The package requires [Jedi](https://pypi.org/project/jedi/) to be installed.
 
@@ -23,14 +23,31 @@ The package requires [Jedi](https://pypi.org/project/jedi/) to be installed.
 
 Commands available in `atom-workspace`:
 
-- `autocomplete-jedi-redux:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
+- `autocomplete-jedi:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
 
-Commands available in `atom-text-editor[data-grammar~=python]:not([mini])`:
+Commands available in `atom-text-editor[data-grammar~=python]`:
 
-- `autocomplete-jedi-redux:go-to-definition`: navigate to the definition of the symbol under cursor,
-- `autocomplete-jedi-redux:show-usages`: list all usages of the symbol under cursor,
-- `autocomplete-jedi-redux:override-method`: insert a method override from a parent class,
-- `autocomplete-jedi-redux:rename`: rename a symbol across all files in the project.
+- `autocomplete-jedi:go-to-definition`: navigate to the definition of the symbol under cursor,
+- `autocomplete-jedi:show-usages`: list all usages of the symbol under cursor,
+- `autocomplete-jedi:override-method`: insert a method override from a parent class,
+- `autocomplete-jedi:rename`: rename a symbol across all files in the project.
+
+## Customization
+
+The rename dialog can be restyled from your stylesheet, e.g.:
+
+```less
+.autocomplete-jedi-rename {
+  .autocomplete-jedi-rename-label {
+    color: var(--text-color-info);
+  }
+}
+```
+
+## Services
+
+- **autocomplete.provider** (`2.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
+- **hyperclick.provider** (`0.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
 
 ## Contributing
 
