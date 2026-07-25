@@ -46,8 +46,8 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 
 ## Services
 
-- **autocomplete.provider** (`2.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
-- **hyperclick.provider** (`0.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
+- **autocomplete.provider** (`1.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
+- **hyperclick.provider** (`1.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
 
 ## Contributing
 
