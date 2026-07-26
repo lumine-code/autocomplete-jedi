@@ -49,12 +49,12 @@
   "providedServices": {
     "autocomplete.provider": {
       "versions": {
-        "1.0.0": "getProvider"
+        "1.0.0": "provideAutocomplete"
       }
     },
     "hyperclick.provider": {
       "versions": {
-        "1.0.0": "getHyperclickProvider"
+        "1.0.0": "provideHyperclick"
       }
     }
   },

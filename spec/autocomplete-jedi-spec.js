@@ -27,7 +27,7 @@ describe("autocomplete-jedi", () => {
     atom.packages.triggerDeferredActivationHooks();
     atom.packages.triggerActivationHook("language-python:grammar-used");
     mainModule = (await activation).mainModule;
-    provider = mainModule.getProvider().load();
+    provider = mainModule.provideAutocomplete().load();
     provider.requests = {};
     provider.responses = {};
     editor = await atom.workspace.open();
@@ -103,7 +103,7 @@ describe("autocomplete-jedi", () => {
     let hyperclick;
 
     beforeEach(() => {
-      hyperclick = mainModule.getHyperclickProvider();
+      hyperclick = mainModule.provideHyperclick();
     });
 
     it("exposes the renamed provider", () => {
