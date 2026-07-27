@@ -48,8 +48,8 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 
 ## Services
 
-- **[autocomplete.provider](https://lumine-code.github.io/docs.html#services/autocomplete.provider)** (`1.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
-- **[hyperclick.provider](https://lumine-code.github.io/docs.html#services/hyperclick.provider)** (`1.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
+- **autocomplete.provider** (`1.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
+- **hyperclick.provider** (`1.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
 
 ## Contributing
 
