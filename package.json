@@ -43,9 +43,7 @@
       "autocomplete-jedi:rename"
     ]
   },
-  "dependencies": {
-    "@lumine-code/select-list": "https://github.com/lumine-code/select-list.git#a201dae6a0ea6954cb9a905be4a718af697d9f78"
-  },
+  "dependencies": {},
   "providedServices": {
     "autocomplete.provider": {
       "versions": {
