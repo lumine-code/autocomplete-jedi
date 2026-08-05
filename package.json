@@ -24,6 +24,12 @@
     "In Python files you can jump to the definition of the symbol under the cursor with {{ 'autocomplete-jedi:go-to-definition' | keystroke }}"
   ],
   "main": "./lib/main",
+  "files": [
+    "keymaps",
+    "lib",
+    "spec",
+    "styles"
+  ],
   "scripts": {
     "test": "lumine --test spec",
     "lint": "eslint . --max-warnings 0",
