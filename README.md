@@ -38,7 +38,7 @@ Commands available in `atom-text-editor[data-grammar~=python]`:
 
 The rename dialog can be restyled from your stylesheet, e.g.:
 
-```less
+```css
 .autocomplete-jedi-rename {
   .autocomplete-jedi-rename-label {
     color: var(--text-color-info);
