@@ -23,14 +23,14 @@ describe("autocomplete-jedi", () => {
   }
 
   beforeEach(async () => {
-    const activation = atom.packages.activatePackage("autocomplete-jedi");
-    atom.packages.triggerDeferredActivationHooks();
-    atom.packages.triggerActivationHook("language-python:grammar-used");
+    const activation = lumine.packages.activatePackage("autocomplete-jedi");
+    lumine.packages.triggerDeferredActivationHooks();
+    lumine.packages.triggerActivationHook("language-python:grammar-used");
     mainModule = (await activation).mainModule;
     provider = mainModule.provideAutocomplete().load();
     provider.requests = {};
     provider.responses = {};
-    editor = await atom.workspace.open();
+    editor = await lumine.workspace.open();
     editor.setText("import os\nos.pa");
   });
 
@@ -45,11 +45,11 @@ describe("autocomplete-jedi", () => {
   });
 
   it("registers with the bundled autocomplete package through the services hub", async () => {
-    atom.notifications.clear();
-    const pack = await atom.packages.activatePackage("autocomplete");
+    lumine.notifications.clear();
+    const pack = await lumine.packages.activatePackage("autocomplete");
     const { providerManager } = pack.mainModule.autocompleteManager;
     expect(providerManager.metadataForProvider(provider)).toBeTruthy();
-    const errors = atom.notifications
+    const errors = lumine.notifications
       .getNotifications()
       .filter((notification) => notification.getType() === "error");
     expect(errors).toEqual([]);
@@ -92,11 +92,11 @@ describe("autocomplete-jedi", () => {
   });
 
   it("returns no suggestions when completion is disabled", () => {
-    atom.config.set("autocomplete-jedi.enableCompletion", false);
+    lumine.config.set("autocomplete-jedi.enableCompletion", false);
     const spy = stubDaemon(FIXTURE_COMPLETIONS);
     expect(getSuggestions()).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
-    atom.config.set("autocomplete-jedi.enableCompletion", true);
+    lumine.config.set("autocomplete-jedi.enableCompletion", true);
   });
 
   describe("hyperclick provider", () => {
@@ -119,8 +119,8 @@ describe("autocomplete-jedi", () => {
     });
 
     it("returns a go-to-definition callback for Python symbols", async () => {
-      await atom.packages.activatePackage("language-python");
-      const pyEditor = await atom.workspace.open("sample.py");
+      await lumine.packages.activatePackage("language-python");
+      const pyEditor = await lumine.workspace.open("sample.py");
       pyEditor.setText("import os\nos.path\n");
       const range = { start: { row: 1, column: 0 }, end: { row: 1, column: 2 } };
       const suggestion = hyperclick.getSuggestionForWord(pyEditor, "os", range);

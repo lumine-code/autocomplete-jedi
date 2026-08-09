@@ -38,14 +38,13 @@
   },
   "activationHooks": [
     "language-python:grammar-used",
-    "MagicPython:grammar-used",
-    "atom-django:grammar-used"
+    "MagicPython:grammar-used"
   ],
   "activationCommands": {
-    "atom-workspace": [
+    "lumine-workspace": [
       "autocomplete-jedi:add-roots-to-extra-paths"
     ],
-    "atom-text-editor[data-grammar~=python]": [
+    "lumine-text-editor[data-grammar~=python]": [
       "autocomplete-jedi:go-to-definition",
       "autocomplete-jedi:show-usages",
       "autocomplete-jedi:override-method",
