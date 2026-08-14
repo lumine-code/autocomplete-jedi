@@ -17,7 +17,7 @@ Completes packages, variables, methods, and functions with their arguments, powe
 
 ## Installation
 
-To install `autocomplete-jedi` search for _autocomplete-jedi_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/autocomplete-jedi`.
+To install `autocomplete-jedi` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/autocomplete-jedi`.
 
 The package requires [Jedi](https://pypi.org/project/jedi/) to be installed.
 
@@ -48,8 +48,8 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 
 ## Services
 
-- **autocomplete.provider** (`1.0.0`): provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
-- **hyperclick.provider** (`1.0.0`): provided to hyperclick consumers to jump to the definition of a clicked symbol.
+- `autocomplete.provider`: provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
+- `hyperclick.provider`: provided to hyperclick consumers to jump to the definition of a clicked symbol.
 
 ## Contributing
 
