@@ -84,11 +84,11 @@
     },
     "priority": {
       "title": "Priority",
-      "description": "Autocomplete suggestion priority. Lower value means higher priority relative to other providers. The built-in snippets provider has priority 2.",
+      "description": "Where these suggestions sit relative to other providers. Higher values come first. The default 4 is the domain-expert tier, above general-purpose providers such as language servers and snippets at 2, and below a provider inspecting a live runtime at 5.",
       "type": "integer",
       "minimum": 0,
       "maximum": 99,
-      "default": 3
+      "default": 4
     },
     "triggerRegex": {
       "title": "Trigger Regex",
