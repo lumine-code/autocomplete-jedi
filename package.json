@@ -23,6 +23,9 @@
   "backgroundTips": [
     "In Python files you can jump to the definition of the symbol under the cursor with {{ 'autocomplete-jedi:go-to-definition' | keystroke }}"
   ],
+  "specPackages": [
+    "autocomplete"
+  ],
   "main": "./lib/main",
   "files": [
     "keymaps",
