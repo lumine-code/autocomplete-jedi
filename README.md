@@ -41,7 +41,7 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 ```css
 .autocomplete-jedi-rename {
   .autocomplete-jedi-rename-label {
-    color: var(--text-color-info);
+    color: var(--accent-only-text-color);
   }
 }
 ```
