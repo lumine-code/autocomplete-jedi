@@ -135,3 +135,78 @@ describe("autocomplete-jedi", () => {
     });
   });
 });
+
+describe("autocomplete-jedi select lists", () => {
+  let view;
+
+  afterEach(async () => {
+    await view?.destroy();
+  });
+
+  it("opens a definition through a stable item primary action", async () => {
+    const DefinitionsView = require("../lib/definitions-view");
+    const definition = {
+      text: "target",
+      type: "function",
+      fileName: "module.py",
+      line: 4,
+      column: 2,
+    };
+    view = new DefinitionsView();
+    const navigate = spyOn(view, "navigate").and.returnValue(Promise.resolve());
+
+    await view.setItems([definition]);
+    expect(view.selectList.getItemId(definition)).toBe(
+      JSON.stringify([definition.fileName, 4, 2, "function", "target"]),
+    );
+    expect((await view.selectList.confirmSelection()).status).toBe("success");
+
+    expect(navigate).toHaveBeenCalledWith(definition);
+    expect(view.selectList.isVisible()).toBe(false);
+  });
+
+  it("inserts an override through a stable item primary action", async () => {
+    const OverrideView = require("../lib/override-view");
+    const method = {
+      parent: "Base",
+      instance: "self.__class__",
+      name: "run",
+      params: ["value"],
+      fileName: "base.py",
+      line: 5,
+      column: 4,
+    };
+    view = new OverrideView();
+    const insert = spyOn(view, "insertOverride");
+
+    await view.setItems([method]);
+    expect(view.selectList.getItemId(method)).toBe(
+      JSON.stringify([method.fileName, 5, 4, "Base", "self.__class__", "run", ["value"]]),
+    );
+    expect((await view.selectList.confirmSelection()).status).toBe("success");
+
+    expect(insert).toHaveBeenCalledWith(method);
+    expect(view.selectList.isVisible()).toBe(false);
+  });
+
+  it("previews and opens a usage through the event and action APIs", async () => {
+    const UsagesView = require("../lib/usages-view");
+    const usage = {
+      name: "target",
+      fileName: "module.py",
+      line: 7,
+      column: 3,
+    };
+    view = new UsagesView();
+    const preview = spyOn(view, "preview");
+    const navigate = spyOn(view, "navigate").and.returnValue(Promise.resolve());
+
+    await view.setItems([usage]);
+    expect(preview).toHaveBeenCalledWith(usage);
+    expect(view.selectList.getItemId(usage)).toBe(JSON.stringify([usage.fileName, 7, 3, "target"]));
+    expect((await view.selectList.confirmSelection()).status).toBe("success");
+
+    expect(navigate).toHaveBeenCalledWith(usage);
+    expect(view.selectList.isVisible()).toBe(false);
+  });
+});
