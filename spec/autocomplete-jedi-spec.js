@@ -162,7 +162,7 @@ describe("autocomplete-jedi select lists", () => {
     expect((await view.selectList.confirmSelection()).status).toBe("success");
 
     expect(navigate).toHaveBeenCalledWith(definition);
-    expect(view.selectList.isVisible()).toBe(false);
+    expect(view.selectListHost.isVisible()).toBe(false);
   });
 
   it("inserts an override through a stable item primary action", async () => {
@@ -186,7 +186,7 @@ describe("autocomplete-jedi select lists", () => {
     expect((await view.selectList.confirmSelection()).status).toBe("success");
 
     expect(insert).toHaveBeenCalledWith(method);
-    expect(view.selectList.isVisible()).toBe(false);
+    expect(view.selectListHost.isVisible()).toBe(false);
   });
 
   it("previews and opens a usage through the event and action APIs", async () => {
@@ -207,6 +207,6 @@ describe("autocomplete-jedi select lists", () => {
     expect((await view.selectList.confirmSelection()).status).toBe("success");
 
     expect(navigate).toHaveBeenCalledWith(usage);
-    expect(view.selectList.isVisible()).toBe(false);
+    expect(view.selectListHost.isVisible()).toBe(false);
   });
 });
