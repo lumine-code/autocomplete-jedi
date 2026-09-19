@@ -23,9 +23,9 @@ describe("autocomplete-jedi", () => {
   }
 
   beforeEach(async () => {
-    const activation = lumine.packages.activatePackage("autocomplete-jedi");
+    const activation = lumine.packages.activatePackage("autocomplete-jedi", { defer: true });
     lumine.packages.triggerDeferredActivationHooks();
-    lumine.packages.triggerActivationHook("language-ipython:grammar-used");
+    lumine.packages.triggerActivationHook("source.python.ipy:root-scope-used");
     mainModule = (await activation).mainModule;
     provider = mainModule.provideAutocomplete().load();
     provider.requests = {};
@@ -46,7 +46,7 @@ describe("autocomplete-jedi", () => {
 
   it("activates for the standalone IPython grammar package", () => {
     const { activationHooks } = require("../package.json");
-    expect(activationHooks).toContain("language-ipython:grammar-used");
+    expect(activationHooks).toContain("source.python.ipy:root-scope-used");
   });
 
   it("registers with the bundled autocomplete package through the services hub", async () => {
