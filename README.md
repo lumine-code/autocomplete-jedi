@@ -27,7 +27,7 @@ Commands available in `lumine-workspace`:
 
 - `autocomplete-jedi:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
 
-Commands available in `lumine-text-editor[data-grammar~=python]`:
+Commands available in `lumine-text-editor[data-grammar~=python]:not([mini])`:
 
 - `autocomplete-jedi:go-to-definition`: navigate to the definition of the symbol under cursor,
 - `autocomplete-jedi:show-usages`: list all usages of the symbol under cursor,

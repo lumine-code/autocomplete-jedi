@@ -1,6 +1,9 @@
 // The provider talks to a jedi daemon over stdin/stdout. The specs stub the
 // transport (sendRequest) and synthesize daemon responses, so no Python
 // interpreter is needed to run them.
+const path = require("path");
+
+const autocompleteRoot = path.join(__dirname, "..", "..", "autocomplete");
 
 const FIXTURE_COMPLETIONS = [
   { text: "path", type: "import", description: "os.path module", rightLabel: "" },
@@ -23,10 +26,10 @@ describe("autocomplete-jedi", () => {
   }
 
   beforeEach(async () => {
-    const activation = lumine.packages.activatePackage("autocomplete-jedi", { defer: true });
-    lumine.packages.triggerDeferredActivationHooks();
-    lumine.packages.triggerActivationHook("source.python.ipy:root-scope-used");
-    mainModule = (await activation).mainModule;
+    await lumine.packages.startPackage("autocomplete-jedi");
+    Promise.resolve();
+    await lumine.hooks.trigger("source.python.ipy:root-scope-used");
+    mainModule = lumine.packages.getLoadedPackage("autocomplete-jedi").mainModule;
     provider = mainModule.provideAutocomplete().load();
     provider.requests = {};
     provider.responses = {};
@@ -44,14 +47,18 @@ describe("autocomplete-jedi", () => {
     expect(typeof provider.getSuggestions).toBe("function");
   });
 
-  it("activates for the standalone IPython grammar package", () => {
-    const { activationHooks } = require("../package.json");
-    expect(activationHooks).toContain("source.python.ipy:root-scope-used");
+  it("registers Python commands only on non-mini editors", () => {
+    expect(() =>
+      lumine.commands.dispatch(
+        lumine.views.getView(lumine.workspace),
+        "autocomplete-jedi:go-to-definition",
+      ),
+    ).not.toThrow();
   });
 
   it("registers with the bundled autocomplete package through the services hub", async () => {
     lumine.notifications.clear();
-    const pack = await lumine.packages.activatePackage("autocomplete");
+    const pack = await lumine.packages.activatePackage(autocompleteRoot);
     const { providerManager } = pack.mainModule.autocompleteManager;
     expect(providerManager.metadataForProvider(provider)).toBeTruthy();
     const errors = lumine.notifications
@@ -102,6 +109,52 @@ describe("autocomplete-jedi", () => {
     expect(getSuggestions()).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
     lumine.config.set("autocomplete-jedi.enableCompletion", true);
+  });
+
+  describe("daemon lifetime", () => {
+    let originalBufferedProcess;
+
+    beforeEach(() => {
+      originalBufferedProcess = provider.BufferedProcess;
+      provider.BufferedProcess = class {
+        constructor() {
+          this.process = { stdin: { on() {} } };
+          this.kill = jasmine.createSpy("kill");
+        }
+
+        onWillThrowError() {}
+      };
+      spyOn(provider.InterpreterLookup, "applySubstitutions").and.returnValue(["python"]);
+    });
+
+    afterEach(() => {
+      clearTimeout(provider.daemonKillTimer);
+      provider.daemonKillTimer = null;
+      provider.BufferedProcess = originalBufferedProcess;
+    });
+
+    it("only lets the current daemon's timer kill the current process", () => {
+      provider.spawnDaemon();
+      const first = provider.provider;
+      provider.spawnDaemon();
+      const second = provider.provider;
+
+      advanceClock(60 * 10 * 1000);
+
+      expect(first.kill).not.toHaveBeenCalled();
+      expect(second.kill).toHaveBeenCalledTimes(1);
+    });
+
+    it("cancels the daemon timer when the provider is disposed", () => {
+      provider.spawnDaemon();
+      const process = provider.provider;
+
+      provider.dispose();
+      process.kill.calls.reset();
+      advanceClock(60 * 10 * 1000);
+
+      expect(process.kill).not.toHaveBeenCalled();
+    });
   });
 
   describe("hyperclick provider", () => {

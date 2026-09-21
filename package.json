@@ -39,29 +39,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "activationHooks": [
-    "MagicPython:grammar-used",
-    "source.python:root-scope-used",
-    "source.python.ipy:root-scope-used"
-  ],
-  "activationCommands": {
-    "lumine-workspace": [
-      "autocomplete-jedi:add-roots-to-extra-paths",
-      "autocomplete-jedi:go-to-definition",
-      "autocomplete-jedi:insert-override",
-      "autocomplete-jedi:open-definition",
-      "autocomplete-jedi:open-usage",
-      "autocomplete-jedi:override-method",
-      "autocomplete-jedi:rename",
-      "autocomplete-jedi:show-usages"
-    ],
-    "lumine-text-editor[data-grammar~=python]": [
-      "autocomplete-jedi:go-to-definition",
-      "autocomplete-jedi:show-usages",
-      "autocomplete-jedi:override-method",
-      "autocomplete-jedi:rename"
-    ]
-  },
   "providedServices": {
     "autocomplete.provider": {
       "versions": {
