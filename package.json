@@ -20,9 +20,6 @@
   "engines": {
     "lumine": "^1.0.0"
   },
-  "backgroundTips": [
-    "In Python files you can jump to the definition of the symbol under the cursor with {{ 'autocomplete-jedi:go-to-definition' | keystroke }}"
-  ],
   "specPackages": [
     "autocomplete"
   ],
@@ -48,6 +45,11 @@
     "hyperclick.provider": {
       "versions": {
         "1.0.0": "provideHyperclick"
+      }
+    },
+    "background-tips.provider": {
+      "versions": {
+        "1.0.0": "provideBackgroundTips"
       }
     }
   },
