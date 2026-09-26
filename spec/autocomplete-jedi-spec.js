@@ -12,7 +12,7 @@ const FIXTURE_COMPLETIONS = [
 ];
 
 describe("autocomplete-jedi", () => {
-  let mainModule, provider, editor;
+  let mainModule, autocompleteProvider, provider, providerWasDeferred, editor;
 
   // Resolve pending daemon requests asynchronously: the real transport always
   // answers after getSuggestions has registered its request id.
@@ -27,10 +27,10 @@ describe("autocomplete-jedi", () => {
 
   beforeEach(async () => {
     await lumine.packages.startPackage("autocomplete-jedi");
-    Promise.resolve();
-    await lumine.hooks.trigger("source.python.ipy:root-scope-used");
     mainModule = lumine.packages.getLoadedPackage("autocomplete-jedi").mainModule;
-    provider = mainModule.provideAutocomplete().load();
+    autocompleteProvider = mainModule.provideAutocomplete();
+    providerWasDeferred = mainModule.provider == null;
+    provider = mainModule.ensureProvider();
     provider.requests = {};
     provider.responses = {};
     editor = await lumine.workspace.open();
@@ -38,13 +38,22 @@ describe("autocomplete-jedi", () => {
   });
 
   function getSuggestions(prefix = "pa", bufferPosition = { row: 1, column: 5 }) {
-    return provider.getSuggestions({ editor, bufferPosition, prefix });
+    return autocompleteProvider.getSuggestions({ editor, bufferPosition, prefix });
   }
 
   it("exposes an autocomplete provider for Python sources", () => {
-    expect(provider.scopeSelector).toBe(".source.python");
-    expect(provider.disableForScopeSelector).toContain(".source.python .comment");
-    expect(typeof provider.getSuggestions).toBe("function");
+    expect(autocompleteProvider.scopeSelector).toBe(".source.python");
+    expect(autocompleteProvider.disableForScopeSelector).toContain(".source.python .comment");
+    expect(typeof autocompleteProvider.getSuggestions).toBe("function");
+  });
+
+  it("defers the Jedi runtime until its first use", () => {
+    expect(providerWasDeferred).toBe(true);
+  });
+
+  it("reads suggestion priority from the current configuration", () => {
+    lumine.config.set("autocomplete-jedi.priority", 7);
+    expect(autocompleteProvider.suggestionPriority).toBe(7);
   });
 
   it("registers Python commands only on non-mini editors", () => {
@@ -60,7 +69,7 @@ describe("autocomplete-jedi", () => {
     lumine.notifications.clear();
     const pack = await lumine.packages.activatePackage(autocompleteRoot);
     const { providerManager } = pack.mainModule.autocompleteManager;
-    expect(providerManager.metadataForProvider(provider)).toBeTruthy();
+    expect(providerManager.metadataForProvider(autocompleteProvider)).toBeTruthy();
     const errors = lumine.notifications
       .getNotifications()
       .filter((notification) => notification.getType() === "error");
