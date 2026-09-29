@@ -8,7 +8,7 @@ describe("jedi-tools", () => {
     return spyOn(provider, "sendRequest").and.callFake((data) => {
       const payload = JSON.parse(data);
       queueMicrotask(() => {
-        provider.deserialize(JSON.stringify({ id: payload.id, results }));
+        provider.deserialize(JSON.stringify({ id: payload.id, results }) + "\n");
       });
     });
   }
@@ -16,8 +16,8 @@ describe("jedi-tools", () => {
   beforeEach(async () => {
     await lumine.packages.startPackage("jedi-tools");
     mainModule = lumine.packages.getLoadedPackage("jedi-tools").mainModule;
-    providerWasDeferred = mainModule.provider == null;
-    provider = mainModule.ensureProvider();
+    providerWasDeferred = mainModule.tools == null;
+    provider = mainModule.ensureTools();
     provider.requests = {};
     editor = await lumine.workspace.open();
     editor.setText("value = 1\nprint(value)");
@@ -99,6 +99,72 @@ describe("jedi-tools", () => {
     expect(new Set(ids).size).toBe(2);
   });
 
+  it("waits for complete response lines and resolves several responses in one chunk", async () => {
+    const send = spyOn(provider, "sendRequest");
+    const first = provider.getDefinitions(editor, { row: 1, column: 8 });
+    const second = provider.getUsages(editor, { row: 1, column: 8 });
+    const ids = send.calls.allArgs().map(([data]) => JSON.parse(data).id);
+    const response = JSON.stringify({ id: ids[0], results: ["definition"] });
+    provider.deserialize(response.slice(0, 12));
+    expect(Object.keys(provider.requests).length).toBe(2);
+    provider.deserialize(
+      response.slice(12) + "\n" + JSON.stringify({ id: ids[1], results: ["usage"] }) + "\n",
+    );
+    expect(await Promise.all([first, second])).toEqual([["definition"], ["usage"]]);
+    expect(Object.keys(provider.requests)).toEqual([]);
+  });
+
+  it("does not open an old definition result after the runtime is reloaded", async () => {
+    spyOn(provider, "sendRequest");
+    const addList = spyOn(lumine.workspace, "addSelectList").and.callThrough();
+    const pending = provider.goToDefinition(editor);
+    provider.dispose();
+    provider.load();
+    await pending;
+    expect(addList).not.toHaveBeenCalled();
+  });
+
+  it("does not open an old rename result after the runtime is reloaded", async () => {
+    spyOn(provider, "sendRequest");
+    const addList = spyOn(lumine.workspace, "addSelectList").and.callThrough();
+    provider.rename(editor);
+    provider.dispose();
+    provider.load();
+    await flushMicrotasks();
+    expect(addList).not.toHaveBeenCalled();
+  });
+
+  it("does not move the cursor when a definition opens after the runtime was reloaded", async () => {
+    stubDaemon([{ fileName: "definition.py", line: 3, column: 4 }]);
+    let resolveOpen;
+    const opened = new Promise((resolve) => {
+      resolveOpen = resolve;
+    });
+    const open = spyOn(lumine.workspace, "open").and.returnValue(opened);
+    const pending = provider.goToDefinition(editor);
+    await flushMicrotasks();
+    expect(open).toHaveBeenCalled();
+    provider.dispose();
+    provider.load();
+    const move = spyOn(editor, "setCursorBufferPosition").and.callThrough();
+    resolveOpen(editor);
+    await pending;
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it("expands every project path independently and preserves literal dollar signs", () => {
+    const path = require("path");
+    const first = path.resolve("workspace", "$&");
+    const second = path.resolve("workspace", "second");
+    spyOn(lumine.project, "getPaths").and.returnValue([first, second]);
+    expect(
+      provider.projectPaths.applySubstitutions([
+        "$PROJECT/$PROJECT_NAME",
+        "$PROJECT/$PROJECT_NAME",
+      ]),
+    ).toEqual([first + "/$&", second + "/second"]);
+  });
+
   it("warns when a workspace command is used in a non-Python editor", () => {
     const warning = spyOn(lumine.notifications, "addWarning");
     const go = spyOn(provider, "goToDefinition");
@@ -145,14 +211,22 @@ describe("jedi-tools", () => {
     beforeEach(() => {
       originalBufferedProcess = provider.BufferedProcess;
       provider.BufferedProcess = class {
-        constructor() {
-          this.process = { stdin: { on() {} } };
+        constructor(options) {
+          this.options = options;
+          this.process = {
+            pid: 1,
+            exitCode: null,
+            signalCode: null,
+            stdin: { on() {}, write: jasmine.createSpy("write") },
+          };
           this.kill = jasmine.createSpy("kill");
         }
 
-        onWillThrowError() {}
+        onWillThrowError(callback) {
+          this.errorCallback = callback;
+        }
       };
-      spyOn(provider.InterpreterLookup, "applySubstitutions").and.returnValue(["python"]);
+      spyOn(provider.projectPaths, "applySubstitutions").and.returnValue(["python"]);
     });
 
     afterEach(() => {
@@ -163,9 +237,9 @@ describe("jedi-tools", () => {
 
     it("only lets the current daemon's timer kill the current process", () => {
       provider.spawnDaemon();
-      const first = provider.provider;
+      const first = provider.daemon;
       provider.spawnDaemon();
-      const second = provider.provider;
+      const second = provider.daemon;
       advanceClock(60 * 10 * 1000);
       expect(first.kill).not.toHaveBeenCalled();
       expect(second.kill).toHaveBeenCalledTimes(1);
@@ -173,11 +247,63 @@ describe("jedi-tools", () => {
 
     it("cancels the daemon timer when the provider is disposed", () => {
       provider.spawnDaemon();
-      const process = provider.provider;
+      const process = provider.daemon;
       provider.dispose();
       process.kill.calls.reset();
       advanceClock(60 * 10 * 1000);
       expect(process.kill).not.toHaveBeenCalled();
+    });
+
+    it("allows more than ten concurrent tool requests without dropping promises", async () => {
+      const pending = Array.from({ length: 15 }, () =>
+        provider.getDefinitions(editor, { row: 1, column: 8 }),
+      );
+      const daemon = provider.daemon;
+      expect(Object.keys(provider.requests).length).toBe(15);
+      expect(daemon.kill).not.toHaveBeenCalled();
+      for (const [data] of daemon.process.stdin.write.calls.allArgs()) {
+        const request = JSON.parse(data);
+        daemon.options.stdout(JSON.stringify({ id: request.id, results: [request.id] }) + "\n");
+      }
+      expect((await Promise.all(pending)).length).toBe(15);
+      expect(Object.keys(provider.requests)).toEqual([]);
+    });
+
+    it("settles pending requests when the daemon exits and sends a new request after restart", async () => {
+      const pending = provider.getDefinitions(editor, { row: 1, column: 8 });
+      const first = provider.daemon;
+      first.options.exit(1);
+      expect(await pending).toEqual([]);
+      const restarted = provider.getUsages(editor, { row: 1, column: 8 });
+      const second = provider.daemon;
+      expect(second).not.toBe(first);
+      const payload = JSON.parse(second.process.stdin.write.calls.mostRecent().args[0]);
+      second.options.stdout(JSON.stringify({ id: payload.id, results: ["current"] }) + "\n");
+      expect(await restarted).toEqual(["current"]);
+    });
+
+    it("settles pending tool requests on disposal", async () => {
+      const pending = provider.getDefinitions(editor, { row: 1, column: 8 });
+      const daemon = provider.daemon;
+      provider.dispose();
+      expect(await pending).toEqual([]);
+      expect(daemon.kill).toHaveBeenCalledOnceWith();
+    });
+
+    it("ignores delayed errors and stdout from a replaced daemon", async () => {
+      provider.spawnDaemon();
+      const first = provider.daemon;
+      provider.stopDaemon();
+      const pending = provider.getDefinitions(editor, { row: 1, column: 8 });
+      const second = provider.daemon;
+      const handle = jasmine.createSpy("handle");
+      first.errorCallback({ error: { code: "ENOENT", syscall: "spawn python" }, handle });
+      expect(handle).toHaveBeenCalled();
+      expect(second.kill).not.toHaveBeenCalled();
+      const payload = JSON.parse(second.process.stdin.write.calls.mostRecent().args[0]);
+      first.options.stdout(JSON.stringify({ id: payload.id, results: ["stale"] }) + "\n");
+      second.options.stdout(JSON.stringify({ id: payload.id, results: ["current"] }) + "\n");
+      expect(await pending).toEqual(["current"]);
     });
   });
 
@@ -210,6 +336,41 @@ describe("jedi-tools", () => {
       const go = spyOn(provider, "goToDefinition");
       suggestion.callback();
       expect(go).toHaveBeenCalledOnceWith(pyEditor, range.start);
+    });
+
+    it("leaves comment, string and numeric scope filtering to the hyperclick registry", async () => {
+      await lumine.packages.startPackage("hyperclick");
+      const packagePath = lumine.packages.getLoadedPackage("hyperclick").path;
+      const ProviderRegistry = require(
+        require("path").join(packagePath, "lib", "provider-registry"),
+      );
+      const registry = new ProviderRegistry();
+      registry.add(hyperclick);
+      const getSuggestion = spyOn(hyperclick, "getSuggestionForWord").and.callThrough();
+      const range = { start: { row: 0, column: 0 }, end: { row: 0, column: 2 } };
+      const scope = spyOn(editor, "scopeDescriptorForBufferPosition");
+      for (const value of [
+        "comment.line.number-sign.python",
+        "string.quoted.single.python",
+        "constant.numeric.integer.python",
+        "constant.numeric.float.python",
+      ]) {
+        scope.and.returnValue({ getScopeChain: () => ".source.python ." + value });
+        expect(await registry.getSuggestion(editor, "value", range)).toBeNull();
+      }
+      expect(getSuggestion).not.toHaveBeenCalled();
+    });
+
+    it("does not reload tools from a cached hyperclick callback after deactivation", async () => {
+      await lumine.packages.activatePackage("language-python");
+      const pyEditor = await lumine.workspace.open("sample.py");
+      const range = { start: { row: 0, column: 0 }, end: { row: 0, column: 5 } };
+      const suggestion = hyperclick.getSuggestionForWord(pyEditor, "value", range);
+      mainModule.deactivate();
+      const ensure = spyOn(mainModule, "ensureTools").and.callThrough();
+      suggestion.callback();
+      expect(ensure).not.toHaveBeenCalled();
+      expect(mainModule.tools).toBeNull();
     });
   });
 });

@@ -2,6 +2,7 @@
 node_modules/
 
 # Build artifacts
+__pycache__/
 *.log
 npm-debug.log*
 

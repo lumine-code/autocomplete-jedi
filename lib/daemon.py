@@ -1,188 +1,157 @@
-import os
-import io
+import contextlib
 import inspect
-import sys
 import json
+import os
+from pathlib import Path
+import sys
 import traceback
 
 import jedi
 
-class JediTools(object):
-    basic_types = {
-        'module': 'import',
-        'instance': 'variable',
-        'statement': 'value',
-        'param': 'variable',
-    }
 
-    def __init__(self):
-        self.default_sys_path = sys.path
-        self._input = io.open(sys.stdin.fileno(), encoding='utf-8')
-        self._devnull = open(os.devnull, 'w')
-        self.stdout, self.stderr = sys.stdout, sys.stderr
+DEFINITION_TYPES = {
+    "module": "import",
+    "instance": "variable",
+    "statement": "value",
+    "param": "variable",
+}
+OVERRIDE_PROBE = "__jedi_tools_override"
 
-    def _get_definition_type(self, definition):
-        is_built_in = definition.in_builtin_module
-        if definition.type not in ['import', 'keyword'] and is_built_in():
-            return 'builtin'
-        if definition.type in ['statement'] and definition.name.isupper():
-            return 'constant'
-        return self.basic_types.get(definition.type, definition.type)
 
-    @classmethod
-    def _get_top_level_module(cls, path):
-        """Recursively walk through directories looking for top level module.
+def definition_type(definition):
+    if definition.type not in ("import", "keyword") and definition.in_builtin_module():
+        return "builtin"
+    if definition.type == "statement" and definition.name.isupper():
+        return "constant"
+    return DEFINITION_TYPES.get(definition.type, definition.type)
 
-        Jedi will use current filepath to look for another modules at same
-        path, but it will not be able to see modules **above**, so our goal
-        is to find the higher python module available from filepath.
-        """
-        _path, _ = os.path.split(path)
-        if _path != path and os.path.isfile(os.path.join(_path, '__init__.py')):
-            return cls._get_top_level_module(_path)
-        return path
 
-    def _serialize_methods(self, script, line, column, identifier=None):
-        _methods = []
-        try:
-            completions = script.complete(line, column)
-        except KeyError:
-            return json.dumps({'id': identifier, 'results': []})
+def project_root(file_path):
+    root = Path(file_path).resolve().parent if file_path else Path.cwd()
+    while (root / "__init__.py").is_file() and root.parent != root:
+        root = root.parent
+    return root
 
-        for completion in completions:
-            if completion.name == '__jedi_tools_override':
-                instance = completion.parent().name
-                break
+
+def serialize_definitions(definitions):
+    return [
+        {
+            "text": definition.name,
+            "type": definition_type(definition),
+            "fileName": str(definition.module_path),
+            "line": definition.line - 1,
+            "column": definition.column,
+        }
+        for definition in definitions
+        if definition.module_path
+    ]
+
+
+def serialize_usages(usages):
+    return [
+        {
+            "name": usage.name,
+            "fileName": str(usage.module_path),
+            "line": usage.line,
+            "column": usage.column,
+        }
+        for usage in usages
+        if usage.module_path
+    ]
+
+
+def method_parameters(signature):
+    params = []
+    call_params = []
+    keyword_only = False
+    for index, param in enumerate(signature.params):
+        if param.kind == inspect.Parameter.KEYWORD_ONLY and not keyword_only:
+            params.append("*")
+            keyword_only = True
+        params.append(param.to_string())
+        if param.kind == inspect.Parameter.POSITIONAL_ONLY:
+            next_param = signature.params[index + 1] if index + 1 < len(signature.params) else None
+            if next_param is None or next_param.kind != inspect.Parameter.POSITIONAL_ONLY:
+                params.append("/")
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            call_params.append("*" + param.name)
+            keyword_only = True
+        elif param.kind == inspect.Parameter.VAR_KEYWORD:
+            call_params.append("**" + param.name)
+        elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+            call_params.append(param.name + "=" + param.name)
         else:
-            instance = 'self.__class__'
-
-        for completion in completions:
-            signatures = completion.get_signatures()
-            params = [param.to_string() for param in signatures[0].params] if signatures else []
-            call_params = []
-            if signatures:
-                for param in signatures[0].params:
-                    if param.kind == inspect.Parameter.VAR_POSITIONAL:
-                        call_params.append('*' + param.name)
-                    elif param.kind == inspect.Parameter.VAR_KEYWORD:
-                        call_params.append('**' + param.name)
-                    elif param.kind == inspect.Parameter.KEYWORD_ONLY:
-                        call_params.append(param.name + '=' + param.name)
-                    else:
-                        call_params.append(param.name)
-            if completion.parent().type == 'class':
-                _methods.append({
-                    'parent': completion.parent().name,
-                    'instance': instance,
-                    'name': completion.name,
-                    'params': params,
-                    'callParams': call_params,
-                    'moduleName': completion.module_name,
-                    'fileName': os.fspath(completion.module_path) if completion.module_path else None,
-                    'line': completion.line,
-                    'column': completion.column,
-                })
-        return json.dumps({'id': identifier, 'results': _methods})
-
-    def _top_definition(self, definition):
-        for d in definition.goto():
-            if d == definition:
-                continue
-            if d.type == 'import':
-                return self._top_definition(d)
-            else:
-                return d
-        return definition
-
-    def _serialize_definitions(self, definitions, identifier=None):
-        _definitions = []
-        for definition in definitions:
-            if definition.module_path:
-                if definition.type == 'import':
-                    definition = self._top_definition(definition)
-                if not definition.module_path:
-                    continue
-                _definitions.append({
-                    'text': definition.name,
-                    'type': self._get_definition_type(definition),
-                    'fileName': os.fspath(definition.module_path),
-                    'line': definition.line - 1,
-                    'column': definition.column
-                })
-        return json.dumps({'id': identifier, 'results': _definitions})
-
-    def _serialize_usages(self, usages, identifier=None):
-        _usages = []
-        for usage in usages:
-            _usages.append({
-                'name': usage.name,
-                'moduleName': usage.module_name,
-                'fileName': os.fspath(usage.module_path),
-                'line': usage.line,
-                'column': usage.column,
-            })
-        return json.dumps({'id': identifier, 'results': _usages})
-
-    def _deserialize(self, request):
-        return json.loads(request)
-
-    def _set_request_config(self, config):
-        sys.path = self.default_sys_path
-        self.extra_paths = []
-        for path in config.get('extraPaths', []):
-            if path and path not in sys.path:
-                self.extra_paths.append(path)
-
-    def _process_request(self, request):
-        request = self._deserialize(request)
-        self._set_request_config(request.get('config', {}))
-
-        path = self._get_top_level_module(request.get('path', ''))
-        if path not in sys.path:
-            sys.path.insert(0, path)
-        lookup = request['lookup']
-
-        script = jedi.Script(
-            code=request['source'], path=request.get('path', ''),
-            project=jedi.Project(path, added_sys_path=self.extra_paths),
-        )
-        line = request['line'] + 1
-        column = request['column']
-
-        if lookup == 'definitions':
-            return self._write_response(self._serialize_definitions(
-                script.goto(line, column), request['id']))
-        elif lookup == 'usages':
-            return self._write_response(self._serialize_usages(
-                script.get_references(line, column), request['id']))
-        elif lookup == 'methods':
-            return self._write_response(self._serialize_methods(
-                script, line, column, request['id']))
-        else:
-            raise ValueError('Unknown Jedi Tools lookup: %s' % lookup)
-
-    def _write_response(self, response):
-        sys.stdout = self.stdout
-        sys.stdout.write(response + '\n')
-        sys.stdout.flush()
-
-    def watch(self):
-        while True:
-            try:
-                sys.stdout, sys.stderr = self._devnull, self._devnull
-                request = self._input.readline()
-                if not request:
-                    return
-                self._process_request(request)
-            except Exception:
-                sys.stderr = self.stderr
-                sys.stderr.write(traceback.format_exc() + '\n')
-                sys.stderr.flush()
+            call_params.append(param.name)
+    return params, call_params
 
 
-if __name__ == '__main__':
-    if sys.argv[1:]:
-        for s in sys.argv[1:]:
-            JediTools()._process_request(s)
+def serialize_methods(script, line, column):
+    # Jedi's public member lookup includes inherited methods. This is invoked
+    # only by Override Method, against the synthetic receiver supplied by JS.
+    members = script.complete(line, column)
+    probe = next((member for member in members if member.name == OVERRIDE_PROBE), None)
+    if probe is None:
+        return []
+    current_class = probe.parent()
+    methods = []
+    for member in members:
+        if member.name == OVERRIDE_PROBE or member.type != "function":
+            continue
+        owner = member.parent()
+        if owner.type != "class" or owner.full_name == current_class.full_name:
+            continue
+        signatures = member.get_signatures()
+        if not signatures:
+            continue
+        params, call_params = method_parameters(signatures[0])
+        methods.append({
+            "parent": owner.name,
+            "instance": current_class.name,
+            "name": member.name,
+            "params": params,
+            "callParams": call_params,
+            "fileName": str(member.module_path) if member.module_path else None,
+            "line": member.line,
+            "column": member.column,
+        })
+    return methods
+
+
+def process_request(request):
+    file_path = request.get("path") or None
+    extra_paths = request.get("config", {}).get("extraPaths", [])
+    project = jedi.Project(project_root(file_path), added_sys_path=extra_paths)
+    script = jedi.Script(code=request["source"], path=file_path, project=project)
+    line = request["line"] + 1
+    column = request["column"]
+    lookup = request["lookup"]
+    if lookup == "definitions":
+        results = serialize_definitions(script.goto(line, column, follow_imports=True))
+    elif lookup == "usages":
+        results = serialize_usages(script.get_references(line, column))
+    elif lookup == "methods":
+        results = serialize_methods(script, line, column)
     else:
-        JediTools().watch()
+        raise ValueError("Unknown Jedi Tools lookup: " + lookup)
+    return {"id": request["id"], "results": results}
+
+
+def watch(input_stream, output_stream, error_stream):
+    # Keep library output out of the newline-delimited JSON protocol. Responses
+    # and tracebacks go directly to the original streams after redirection ends.
+    with open(os.devnull, "w") as quiet:
+        for source in input_stream:
+            try:
+                with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+                    response = process_request(json.loads(source))
+                output_stream.write(json.dumps(response) + "\n")
+                output_stream.flush()
+            except Exception:
+                traceback.print_exc(file=error_stream)
+                error_stream.flush()
+
+
+if __name__ == "__main__":
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8")
+    watch(sys.stdin, sys.stdout, sys.stderr)
