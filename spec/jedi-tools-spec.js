@@ -74,7 +74,7 @@ describe("jedi-tools", () => {
   it("prepares method override requests without modifying the editor", async () => {
     editor.setText("class Base:\n    def run(self): pass\nclass Child(Base):\n");
     const source = editor.getText();
-    const methods = [{ name: "run", parent: "Base", params: [] }];
+    const methods = [{ name: "run", parent: "Base", params: [], callParams: [] }];
     const send = stubDaemon(methods);
     const bufferPosition = { row: 2, column: 0 };
     expect(await provider.getMethods(editor, bufferPosition)).toEqual({
@@ -408,9 +408,10 @@ describe("jedi-tools select lists", () => {
     const OverrideView = require("../lib/override-view");
     const method = {
       parent: "Base",
-      instance: "self.__class__",
+      instance: "Child",
       name: "run",
       params: ["value"],
+      callParams: ["value"],
       fileName: "base.py",
       line: 5,
       column: 4,
@@ -420,7 +421,7 @@ describe("jedi-tools select lists", () => {
 
     await view.setItems([method]);
     expect(view.selectList.getItemId(method)).toBe(
-      JSON.stringify([method.fileName, 5, 4, "Base", "self.__class__", "run", ["value"]]),
+      JSON.stringify([method.fileName, 5, 4, "Base", "Child", "run", ["value"]]),
     );
     expect((await view.selectList.confirmSelection()).status).toBe("success");
 
@@ -461,6 +462,7 @@ describe("jedi-tools select lists", () => {
       instance: "Child",
       name: "run",
       params: ["value: int", "count=2", "*args", "**kwargs"],
+      callParams: ["value", "count", "*args", "**kwargs"],
     });
 
     expect(editor.getText()).toContain("def run(self, value: int, count=2, *args, **kwargs):");
