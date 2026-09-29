@@ -1,15 +1,15 @@
 {
-  "name": "autocomplete-jedi",
+  "name": "jedi-tools",
   "author": "lumine-code",
-  "description": "Python autocompletion powered by Jedi.",
-  "repository": "https://github.com/lumine-code/autocomplete-jedi",
+  "description": "Navigate and refactor Python with Jedi.",
+  "repository": "https://github.com/lumine-code/jedi-tools",
   "bugs": {
-    "url": "https://github.com/lumine-code/autocomplete-jedi/issues"
+    "url": "https://github.com/lumine-code/jedi-tools/issues"
   },
   "keywords": [
     "python",
     "go-to-definition",
-    "completion",
+    "refactoring",
     "hyperclick",
     "virtualenv",
     "rename",
@@ -21,11 +21,12 @@
     "lumine": "^1.0.0"
   },
   "specPackages": [
-    "autocomplete"
+    "language-python"
   ],
   "main": "./lib/main",
   "files": [
     "keymaps",
+    "menus",
     "lib",
     "spec",
     "styles"
@@ -37,11 +38,6 @@
     "format:check": "prettier --check ."
   },
   "providedServices": {
-    "autocomplete.provider": {
-      "versions": {
-        "1.0.0": "provideAutocomplete"
-      }
-    },
     "hyperclick.provider": {
       "versions": {
         "1.0.0": "provideHyperclick"
@@ -62,47 +58,9 @@
     },
     "extraPaths": {
       "title": "Extra Paths",
-      "description": "Semicolon-separated list of additional directories added to `sys.path` for completions and go-to-definition. Use `$PROJECT` or `$PROJECT_NAME` substitutions. Add the parent of any package not installed in your Python environment.",
+      "description": "Semicolon-separated list of additional directories added to `sys.path` for symbol navigation and refactoring. Use `$PROJECT` or `$PROJECT_NAME` substitutions. Add the parent of any package not installed in your Python environment.",
       "type": "string",
       "default": ""
-    },
-    "enableCompletion": {
-      "title": "Enable Completion",
-      "description": "Enable autocomplete suggestions. Disable to use another completion provider while keeping go-to-definition, usages, override and rename features.",
-      "type": "boolean",
-      "default": true
-    },
-    "priority": {
-      "title": "Priority",
-      "description": "Where these suggestions sit relative to other providers. Higher values come first. The default 4 is the domain-expert tier, above general-purpose providers such as language servers and snippets at 2, and below a provider inspecting a live runtime at 5.",
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 99,
-      "default": 4
-    },
-    "triggerRegex": {
-      "title": "Trigger Regex",
-      "description": "Regular expression that determines when completions are triggered. By default completions trigger after words, dots, spaces and `(`. Restart required after changing.",
-      "type": "string",
-      "default": "([\\.\\ (]|[a-zA-Z_][a-zA-Z0-9_]*)"
-    },
-    "showDocStrings": {
-      "title": "Show Doc Strings",
-      "description": "Show doc strings from functions, classes and modules in completion descriptions.",
-      "type": "boolean",
-      "default": true
-    },
-    "caseInsensitive": {
-      "title": "Case Insensitive",
-      "description": "Match completions case-insensitively.",
-      "type": "boolean",
-      "default": true
-    },
-    "fuzzyMatching": {
-      "title": "Fuzzy Matching",
-      "description": "Enable fuzzy matching for completions. Typing `stdr` will match `stderr`.",
-      "type": "boolean",
-      "default": true
     },
     "showErrors": {
       "title": "Show Errors",

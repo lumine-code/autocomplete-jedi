@@ -1,0 +1,34 @@
+{
+  "menu": [
+    {
+      "label": "Packages",
+      "submenu": [
+        {
+          "label": "Jedi Tools",
+          "submenu": [
+            {
+              "label": "Go to Definition",
+              "command": "jedi-tools:go-to-definition"
+            },
+            {
+              "label": "Show Usages",
+              "command": "jedi-tools:show-usages"
+            },
+            {
+              "label": "Rename…",
+              "command": "jedi-tools:rename"
+            },
+            {
+              "label": "Override Method…",
+              "command": "jedi-tools:override-method"
+            },
+            {
+              "label": "Add Roots to Extra Paths",
+              "command": "jedi-tools:add-roots-to-extra-paths"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

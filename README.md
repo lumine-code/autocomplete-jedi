@@ -1,12 +1,11 @@
-# autocomplete-jedi
+# jedi-tools
 
-Python autocompletion powered by Jedi.
+Navigate and refactor Python with Jedi.
 
-Completes packages, variables, methods, and functions with their arguments, powered by [Jedi](https://github.com/davidhalter/jedi).
+Find definitions and usages, rename symbols across your project, and insert method overrides with [Jedi](https://github.com/davidhalter/jedi).
 
 ## Features
 
-- **Autocomplete**: complete packages, variables, methods and functions with their arguments.
 - **Go-to-definition**: navigate to the definition of any symbol.
 - **Show usages**: list all usages of the symbol under cursor across the project.
 - **Rename**: rename a symbol across multiple files in the project.
@@ -17,7 +16,7 @@ Completes packages, variables, methods, and functions with their arguments, powe
 
 ## Installation
 
-To install `autocomplete-jedi` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/autocomplete-jedi`.
+To install `jedi-tools` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/jedi-tools`.
 
 The package requires [Jedi](https://pypi.org/project/jedi/) to be installed.
 
@@ -25,22 +24,19 @@ The package requires [Jedi](https://pypi.org/project/jedi/) to be installed.
 
 Commands available in `lumine-workspace`:
 
-- `autocomplete-jedi:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
-
-Commands available in `lumine-text-editor[data-grammar~=python]:not([mini])`:
-
-- `autocomplete-jedi:go-to-definition`: navigate to the definition of the symbol under cursor,
-- `autocomplete-jedi:show-usages`: list all usages of the symbol under cursor,
-- `autocomplete-jedi:override-method`: insert a method override from a parent class,
-- `autocomplete-jedi:rename`: rename a symbol across all files in the project.
+- `jedi-tools:go-to-definition`: navigate to the definition of the symbol under cursor in a Python editor,
+- `jedi-tools:show-usages`: list all usages of the symbol under cursor in a Python editor,
+- `jedi-tools:rename`: rename a symbol across all files in the project,
+- `jedi-tools:override-method`: insert a method override from a parent class,
+- `jedi-tools:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
 
 ## Customization
 
 The rename dialog can be restyled from your stylesheet, e.g.:
 
 ```css
-.autocomplete-jedi-rename {
-  .autocomplete-jedi-rename-label {
+.jedi-tools-rename {
+  .jedi-tools-rename-label {
     color: var(--accent-only-text-color);
   }
 }
@@ -48,8 +44,8 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 
 ## Services
 
-- `autocomplete.provider`: provided to the autocomplete system to supply Python suggestions from the Jedi daemon.
 - `hyperclick.provider`: provided to hyperclick consumers to jump to the definition of a clicked symbol.
+- `background-tips.provider`: provided to background tips to introduce symbol navigation.
 
 ## Contributing
 

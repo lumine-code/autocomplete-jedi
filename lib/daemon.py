@@ -1,17 +1,13 @@
 import os
 import io
-import re
+import inspect
 import sys
 import json
 import traceback
 
 import jedi
 
-WORD_RE = re.compile(r'\w')
-ARGUMENT_RE = re.compile(r'[a-zA-Z0-9_=\*"\']+')
-
-
-class JediCompletion(object):
+class JediTools(object):
     basic_types = {
         'module': 'import',
         'instance': 'variable',
@@ -33,20 +29,6 @@ class JediCompletion(object):
             return 'constant'
         return self.basic_types.get(definition.type, definition.type)
 
-    def _additional_info(self, completion):
-        try:
-            if not hasattr(completion, '_definition') or completion._definition is None:
-                return ''
-            if completion.type == 'statement':
-                nodes_to_display = ['InstanceElement', 'String', 'Node', 'Lambda', 'Number']
-                return ''.join(
-                    c.get_code() for c in completion._definition.children
-                    if type(c).__name__ in nodes_to_display
-                ).replace('\n', '')
-        except Exception:
-            pass
-        return ''
-
     @classmethod
     def _get_top_level_module(cls, path):
         """Recursively walk through directories looking for top level module.
@@ -60,109 +42,43 @@ class JediCompletion(object):
             return cls._get_top_level_module(_path)
         return path
 
-    def _generate_signature(self, completion):
-        if completion.type in ['module'] or not hasattr(completion, 'params'):
-            return ''
-        return '%s(%s)' % (
-            completion.name,
-            ', '.join(p.description for p in completion.params if p)
-        )
-
-    def _get_call_signatures(self, script, line, column):
-        _signatures = []
-        try:
-            call_signatures = script.get_signatures(line, column)
-        except KeyError:
-            call_signatures = []
-        for signature in call_signatures:
-            for pos, param in enumerate(signature.params):
-                if not param.name:
-                    continue
-                if param.name == 'self' and pos == 0:
-                    continue
-                if WORD_RE.match(param.name) is None:
-                    continue
-                description = re.sub('param ', '', param.description)
-                try:
-                    name, value = description.split('=')
-                except ValueError:
-                    name = description
-                    value = None
-                if name.startswith('*'):
-                    continue
-                _signatures.append((signature, name, value))
-        return _signatures
-
-    def _serialize_completions(self, script, line, column, identifier=None, prefix=''):
-        _completions = []
-
-        for signature, name, value in self._get_call_signatures(script, line, column):
-            if not self.fuzzy_matcher and not name.lower().startswith(prefix.lower()):
-                continue
-            _completion = {
-                'type': 'property',
-                'rightLabel': self._additional_info(signature)
-            }
-            if value:
-                _completion['snippet'] = '%s=${1:%s}$0' % (name, value)
-                _completion['text'] = '%s=%s' % (name, value)
-            else:
-                _completion['snippet'] = '%s=$1$0' % name
-                _completion['text'] = name
-                _completion['displayText'] = name
-            if self.show_doc_strings:
-                _completion['description'] = signature.docstring()
-            else:
-                _completion['description'] = self._generate_signature(signature)
-            _completions.append(_completion)
-
-        try:
-            completions = script.complete(line, column)
-        except KeyError:
-            completions = []
-        for completion in completions:
-            if self.show_doc_strings:
-                description = completion.docstring()
-            else:
-                description = self._generate_signature(completion)
-            _completion = {
-                'text': completion.name,
-                'type': self._get_definition_type(completion),
-                'description': description,
-                'rightLabel': self._additional_info(completion)
-            }
-            if any(c['text'].split('=')[0] == _completion['text'] for c in _completions):
-                continue
-            _completions.append(_completion)
-        return json.dumps({'id': identifier, 'results': _completions})
-
-    def _serialize_methods(self, script, line, column, identifier=None, prefix=''):
+    def _serialize_methods(self, script, line, column, identifier=None):
         _methods = []
         try:
             completions = script.complete(line, column)
         except KeyError:
-            return []
+            return json.dumps({'id': identifier, 'results': []})
 
         for completion in completions:
-            if completion.name == '__autocomplete_python':
+            if completion.name == '__jedi_tools_override':
                 instance = completion.parent().name
                 break
         else:
             instance = 'self.__class__'
 
         for completion in completions:
-            params = []
-            if hasattr(completion, 'params'):
-                params = [p.description for p in completion.params
-                          if ARGUMENT_RE.match(p.description)]
+            signatures = completion.get_signatures()
+            params = [param.to_string() for param in signatures[0].params] if signatures else []
+            call_params = []
+            if signatures:
+                for param in signatures[0].params:
+                    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                        call_params.append('*' + param.name)
+                    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                        call_params.append('**' + param.name)
+                    elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                        call_params.append(param.name + '=' + param.name)
+                    else:
+                        call_params.append(param.name)
             if completion.parent().type == 'class':
                 _methods.append({
                     'parent': completion.parent().name,
                     'instance': instance,
                     'name': completion.name,
                     'params': params,
+                    'callParams': call_params,
                     'moduleName': completion.module_name,
-                    'fileName': os.fspath(completion.module_path),
+                    'fileName': os.fspath(completion.module_path) if completion.module_path else None,
                     'line': completion.line,
                     'column': completion.column,
                 })
@@ -212,9 +128,6 @@ class JediCompletion(object):
 
     def _set_request_config(self, config):
         sys.path = self.default_sys_path
-        self.show_doc_strings = config.get('showDocStrings', True)
-        self.fuzzy_matcher = config.get('fuzzyMatching', False)
-        jedi.settings.case_insensitive_completion = config.get('caseInsensitive', True)
         self.extra_paths = []
         for path in config.get('extraPaths', []):
             if path and path not in sys.path:
@@ -227,7 +140,7 @@ class JediCompletion(object):
         path = self._get_top_level_module(request.get('path', ''))
         if path not in sys.path:
             sys.path.insert(0, path)
-        lookup = request.get('lookup', 'completions')
+        lookup = request['lookup']
 
         script = jedi.Script(
             code=request['source'], path=request.get('path', ''),
@@ -244,10 +157,9 @@ class JediCompletion(object):
                 script.get_references(line, column), request['id']))
         elif lookup == 'methods':
             return self._write_response(self._serialize_methods(
-                script, line, column, request['id'], request.get('prefix', '')))
+                script, line, column, request['id']))
         else:
-            return self._write_response(self._serialize_completions(
-                script, line, column, request['id'], request.get('prefix', '')))
+            raise ValueError('Unknown Jedi Tools lookup: %s' % lookup)
 
     def _write_response(self, response):
         sys.stdout = self.stdout
@@ -271,6 +183,6 @@ class JediCompletion(object):
 if __name__ == '__main__':
     if sys.argv[1:]:
         for s in sys.argv[1:]:
-            JediCompletion()._process_request(s)
+            JediTools()._process_request(s)
     else:
-        JediCompletion().watch()
+        JediTools().watch()

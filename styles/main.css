@@ -1,5 +1,5 @@
-.autocomplete-jedi-rename {
-  .autocomplete-jedi-rename-label {
+.jedi-tools-rename {
+  .jedi-tools-rename-label {
     margin-bottom: 8px;
     color: var(--text-color-subtle);
     font-size: calc(var(--font-size) * 0.9);
