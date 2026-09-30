@@ -468,6 +468,55 @@ describe("jedi-tools", () => {
       hyperclick = mainModule.provideHyperclick();
     });
 
+    it("drops an awaited IPython suggestion when its requesting split closes", async () => {
+      spyOn(editor, "getGrammar").and.returnValue({ scopeName: "source.python.ipy" });
+      const other = lumine.workspace.buildTextEditor({ buffer: editor.getBuffer() });
+      let settle;
+      const edge = mainModule.consumeIPythonSource({
+        project: () =>
+          new Promise((resolve) => {
+            settle = resolve;
+          }),
+      });
+      try {
+        const pending = hyperclick.getSuggestionForWord(
+          editor,
+          "value",
+          editor.getBuffer().getRange(),
+        );
+        editor.destroy();
+        expect(other.getBuffer().isDestroyed()).toBe(false);
+        settle({ isCurrent: () => true, isPythonPosition: () => true });
+        expect(await pending).toBeUndefined();
+      } finally {
+        edge.dispose();
+        other.destroy();
+      }
+    });
+
+    it("does not invoke a cached suggestion for a closed IPython split", async () => {
+      spyOn(editor, "getGrammar").and.returnValue({ scopeName: "source.python.ipy" });
+      const other = lumine.workspace.buildTextEditor({ buffer: editor.getBuffer() });
+      const edge = mainModule.consumeIPythonSource({
+        project: async () => ({ isCurrent: () => true, isPythonPosition: () => true }),
+      });
+      const load = spyOn(mainModule, "ensureTools").and.callThrough();
+      try {
+        const suggestion = await hyperclick.getSuggestionForWord(
+          editor,
+          "value",
+          editor.getBuffer().getRange(),
+        );
+        editor.destroy();
+        expect(other.getBuffer().isDestroyed()).toBe(false);
+        suggestion.callback();
+        expect(load).not.toHaveBeenCalled();
+      } finally {
+        edge.dispose();
+        other.destroy();
+      }
+    });
+
     it("exposes the renamed provider", () => {
       expect(hyperclick.providerName).toBe("jedi-tools");
       expect(typeof hyperclick.getSuggestionForWord).toBe("function");
