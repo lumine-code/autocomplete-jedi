@@ -138,6 +138,26 @@ class DaemonTests(unittest.TestCase):
         self.assertEqual(responses[0]["results"][0]["text"], "średnia")
         self.assertEqual(responses[0]["results"][0]["fileName"], str(path))
 
+    def test_non_bmp_columns_use_utf16_on_both_sides_of_the_protocol(self):
+        source = 'label = "😀"; value = 1\nprint("😀", value)\n'
+        path = self.write("unicode.py", source)
+        column = daemon.utf16_column(source.splitlines()[1], source.splitlines()[1].index("value") + 2)
+        responses, _ = self.run_daemon([
+            self.request("definitions", source, 1, column, path),
+            self.request("usages", source, 1, column, path),
+        ])
+        self.assertEqual(responses[0]["results"][0]["column"], 14)
+        self.assertEqual([usage["column"] for usage in responses[1]["results"]], [14, 12])
+
+    def test_unicode_line_separator_inside_a_string_is_not_a_protocol_row(self):
+        source = 'label = "\u2028😀"; target = 1\ntarget\n'
+        path = self.write("unicode-lines.py", source)
+        physical_line = source.split("\n")[0]
+        column = daemon.utf16_column(physical_line, physical_line.index("target") + 2)
+        responses, _ = self.run_daemon([self.request("definitions", source, 0, column, path)])
+        self.assertEqual(responses[0]["results"][0]["text"], "target")
+        self.assertEqual(responses[0]["results"][0]["column"], 15)
+
     def test_failed_request_does_not_corrupt_the_next_response(self):
         source = "value = 1\nprint(value)\n"
         path = self.write("sample.py", source)

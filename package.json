@@ -22,6 +22,7 @@
   },
   "specPackages": [
     "language-python",
+    "language-ipython",
     "hyperclick"
   ],
   "main": "./lib/main",
@@ -48,6 +49,13 @@
     "background-tips.provider": {
       "versions": {
         "1.0.0": "provideBackgroundTips"
+      }
+    }
+  },
+  "consumedServices": {
+    "ipython.source": {
+      "versions": {
+        "^1.0.0": "consumeIPythonSource"
       }
     }
   },

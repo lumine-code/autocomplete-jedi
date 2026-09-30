@@ -2,6 +2,7 @@ import contextlib
 import inspect
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import traceback
@@ -16,6 +17,26 @@ DEFINITION_TYPES = {
     "param": "variable",
 }
 OVERRIDE_PROBE = "__jedi_tools_override"
+
+
+def utf16_column(line, column):
+    return len(line[:column].encode("utf-16-le", errors="surrogatepass")) // 2
+
+
+def codepoint_column(line, column):
+    units = 0
+    for index, char in enumerate(line):
+        width = 2 if ord(char) > 0xFFFF else 1
+        if units + width > column:
+            return index
+        units += width
+        if units == column:
+            return index + 1
+    return len(line)
+
+
+def result_column(definition):
+    return utf16_column(definition.get_line_code(), definition.column)
 
 
 def definition_type(definition):
@@ -40,7 +61,7 @@ def serialize_definitions(definitions):
             "type": definition_type(definition),
             "fileName": str(definition.module_path),
             "line": definition.line - 1,
-            "column": definition.column,
+            "column": result_column(definition),
         }
         for definition in definitions
         if definition.module_path
@@ -53,7 +74,7 @@ def serialize_usages(usages):
             "name": usage.name,
             "fileName": str(usage.module_path),
             "line": usage.line,
-            "column": usage.column,
+            "column": result_column(usage),
         }
         for usage in usages
         if usage.module_path
@@ -112,7 +133,7 @@ def serialize_methods(script, line, column):
             "callParams": call_params,
             "fileName": str(member.module_path) if member.module_path else None,
             "line": member.line,
-            "column": member.column,
+            "column": result_column(member),
         })
     return methods
 
@@ -123,7 +144,8 @@ def process_request(request):
     project = jedi.Project(project_root(file_path), added_sys_path=extra_paths)
     script = jedi.Script(code=request["source"], path=file_path, project=project)
     line = request["line"] + 1
-    column = request["column"]
+    lines = re.split(r"\r\n|\n|\r", request["source"])
+    column = codepoint_column(lines[line - 1] if line <= len(lines) else "", request["column"])
     lookup = request["lookup"]
     if lookup == "definitions":
         results = serialize_definitions(script.goto(line, column, follow_imports=True))

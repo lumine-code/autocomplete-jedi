@@ -30,6 +30,10 @@ Commands available in `lumine-workspace`:
 - `jedi-tools:override-method`: insert a method override from a parent class,
 - `jedi-tools:add-roots-to-extra-paths`: add all current project root directories to the `Extra Paths` setting.
 
+## Usage
+
+IPython documents use the Python source projection supplied by `language-ipython`. Markdown, raw and foreign magic bodies are excluded from lookup, while Python magic bodies remain available. Requests and returned positions map to the original document, including Unicode columns. Rename checks the current source and refuses changes to protected regions.
+
 ## Customization
 
 The rename dialog can be restyled from your stylesheet, e.g.:
@@ -46,6 +50,7 @@ The rename dialog can be restyled from your stylesheet, e.g.:
 
 - `hyperclick.provider`: provided to hyperclick consumers to jump to the definition of a clicked symbol.
 - `background-tips.provider`: provided to background tips to introduce symbol navigation.
+- `ipython.source`: consumed to analyze the Python portions of IPython documents.
 
 ## Contributing
 
