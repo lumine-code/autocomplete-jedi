@@ -188,6 +188,43 @@ describe("jedi-tools", () => {
     expect(mainModule.ipythonSourceRegistration).toBeNull();
   });
 
+  for (const lookup of ["definitions", "methods"]) {
+    it(`ignores ${lookup} after the requesting split closes with its buffer still open`, async () => {
+      spyOn(editor, "getGrammar").and.returnValue({ scopeName: "source.python.ipy" });
+      const other = lumine.workspace.buildTextEditor({ buffer: editor.getBuffer() });
+      const projection = {
+        text: "class Example:\n    pass\n",
+        isCurrent: () => !other.getBuffer().isDestroyed(),
+        isPythonPosition: () => true,
+        toServerPosition: (position) => position,
+      };
+      const edge = mainModule.consumeIPythonSource({ project: async () => projection });
+      let sent;
+      const ready = new Promise((resolve) => {
+        sent = resolve;
+      });
+      spyOn(provider, "sendRequest").and.callFake((data) => sent(JSON.parse(data)));
+      try {
+        const pending =
+          lookup === "definitions"
+            ? provider.getDefinitions(editor, { row: 0, column: 0 })
+            : provider.getMethods(editor, { row: 0, column: 0 });
+        const payload = await ready;
+        editor.destroy();
+        expect(projection.isCurrent()).toBe(true);
+        provider.deserialize(
+          JSON.stringify({ id: payload.id, results: [{ name: "run", fileName: "other.py" }] }) +
+            "\n",
+        );
+        const result = await pending;
+        expect(lookup === "methods" ? result.methods : result).toEqual([]);
+      } finally {
+        edge.dispose();
+        other.destroy();
+      }
+    });
+  }
+
   it("prepares method override requests without modifying the editor", async () => {
     editor.setText("class Base:\n    def run(self): pass\nclass Child(Base):\n");
     const source = editor.getText();
