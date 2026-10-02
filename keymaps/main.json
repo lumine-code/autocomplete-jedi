@@ -1,5 +1,5 @@
 {
   "lumine-text-editor[data-grammar~='python']:not([mini])": {
-    "f12": "jedi-tools:go-to-definition"
+    "ctrl-alt-d": "jedi-tools:go-to-definition"
   }
 }
